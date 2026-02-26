@@ -783,15 +783,38 @@ function getLevel(traz) {
  * @param {string} majorKey - کلید رشته (tajrobi, riazi, ensani)
  * @returns {Object|null} نتیجه محاسبه شامل تراز، جزئیات، فرمول و ...
  */
-function calculateTraz(majorKey) {
-    const major = MAJORS[majorKey];
-    if (!major) return null;
-
-    const subjectDefs           = major.subjects;
-    const subjectAverages       = {};
-    const details               = {};
-    const disabledSubjectNames  = [];
-    let   activeSubjectCount    = 0;
+function runCalculation() {
+    if (!currentField) {
+        showToast('⚠️ لطفاً ابتدا رشته تحصیلی خود را انتخاب کنید.', 'warning');
+        return;
+    }
+    
+    // === DEBUG: نمایش مراحل اجرا ===
+    console.log('🟢 runCalculation started, currentField:', currentField);
+    
+    try {
+        const result = calculateTraz(currentField);
+        console.log('🟢 calculateTraz result:', result);
+        
+        if (!result) {
+            console.warn('🔴 calculateTraz returned null/undefined!');
+            showToast('❌ خطا در محاسبه! نتیجه‌ای برنگشت.', 'error');
+            return;
+        }
+        
+        renderResult(result);
+        console.log('🟢 renderResult completed successfully');
+        
+        const sec = document.getElementById('resultSection');
+        if (sec) {
+            sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } catch (err) {
+        console.error('🔴 ERROR in runCalculation:', err);
+        console.error('🔴 Stack trace:', err.stack);
+        showToast('❌ خطای غیرمنتظره: ' + err.message, 'error');
+    }
+}
 
     /* ═══════════════════════════════════════════════
      *  گام ۱: محاسبه میانگین وزن‌دار هر درس
