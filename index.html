@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <!-- ═══════════════════════════════════════════════════════
+         📊 Kankor Dashboard v1.2.2
+         ═══════════════════════════════════════════════════════
+         Design: Bento Grid + Glassmorphism + Neumorphism
+         Theme:  Pearl White + Pastel Accents
+         ═══════════════════════════════════════════════════════ -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📊 داشبورد تخمین تراز قلم‌چی</title>
+
+    <!-- فونت وزیرمتن — CDN -->
+    <link
+        rel="preconnect"
+        href="https://cdn.jsdelivr.net"
+        crossorigin
+    />
+    <link
+        href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css"
+        rel="stylesheet"
+    />
+
+    <!-- html2canvas — CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <!-- استایل اختصاصی -->
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <!-- حباب‌های تزئینی پس‌زمینه -->
+    <div class="deco-bubble deco-bubble--1" aria-hidden="true"></div>
+    <div class="deco-bubble deco-bubble--2" aria-hidden="true"></div>
+
+    <!-- ═══════════════════════ App Wrapper ═══════════════════════ -->
+    <div class="app-wrapper">
+
+        <!-- ───────── Header ───────── -->
+        <header class="app-header">
+            <div class="app-header__logo">📊</div>
+            <h1 class="app-header__title">داشبورد تخمین تراز قلم‌چی</h1>
+            <p class="app-header__subtitle">
+                تخمین هوشمند تراز بر اساس درصدهای پایه‌ای
+            </p>
+            <div class="app-header__meta">
+                <span class="app-header__badge badge--date" id="todayDate">📅 ...</span>
+                <span class="app-header__badge badge--version">🔖 نسخه ۱.۲.۲</span>
+                <span class="app-header__badge badge--accuracy">🎯 مدل v6.1</span>
+            </div>
+        </header>
+
+        <!-- ───────── Field Selector ───────── -->
+        <section class="field-selector" aria-label="انتخاب رشته">
+            <span class="field-selector__label">🎓 رشته‌ات رو انتخاب کن:</span>
+            <div class="field-selector__grid">
+                <button
+                    class="field-btn"
+                    data-field="tajrobi"
+                    onclick="selectField('tajrobi')"
+                    aria-pressed="false"
+                >
+                    <span class="field-btn__icon">🧬</span>
+                    تجربی
+                </button>
+                <button
+                    class="field-btn"
+                    data-field="riazi"
+                    onclick="selectField('riazi')"
+                    aria-pressed="false"
+                >
+                    <span class="field-btn__icon">📐</span>
+                    ریاضی فیزیک
+                </button>
+                <button
+                    class="field-btn"
+                    data-field="ensani"
+                    onclick="selectField('ensani')"
+                    aria-pressed="false"
+                >
+                    <span class="field-btn__icon">📖</span>
+                    انسانی
+                </button>
+            </div>
+        </section>
+
+        <!-- ───────── Scores Section ───────── -->
+        <section class="scores-section" id="subjectsSection" aria-label="ورود درصدها">
+            <div class="section-title">
+                <span class="section-title__line"></span>
+                📝 درصدهای پایه‌ای رو وارد کن
+                <span class="section-title__line"></span>
+            </div>
+            <div class="subjects-container" id="subjectsContainer">
+                <!-- پنل‌های دروس توسط JS ساخته میشن -->
+            </div>
+        </section>
+
+        <!-- ───────── Action Buttons ───────── -->
+        <section class="actions-row" id="actionsSection" style="opacity:0; pointer-events:none; transition: opacity 0.5s ease;">
+            <button class="btn btn--primary" onclick="runCalculation()">
+                <span class="btn__icon">🧮</span>
+                محاسبه تراز
+            </button>
+            <button class="btn btn--export" onclick="exportPNG()">
+                <span class="btn__icon">📸</span>
+                خروجی PNG
+            </button>
+            <button class="btn btn--danger" onclick="resetAll()">
+                <span class="btn__icon">🗑️</span>
+                پاک‌سازی
+            </button>
+        </section>
+
+        <!-- ───────── Result Section ───────── -->
+        <section class="result-section" id="resultSection" aria-label="نتایج">
+            <div class="section-title">
+                <span class="section-title__line"></span>
+                📊 نتیجه تخمین
+                <span class="section-title__line"></span>
+            </div>
+            <div class="result-bento" id="resultBento">
+                <div class="result-placeholder">
+                    <div class="result-placeholder__icon">🎯</div>
+                    <div class="result-placeholder__text">
+                        درصدها رو وارد کن و دکمه «محاسبه تراز» رو بزن!
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ───────── Footer ───────── -->
+        <footer class="app-footer">
+            🛠️ ساخته‌شده با ❤️ برای کنکوری‌ها &nbsp;|&nbsp; نسخه ۱.۲.۲
+        </footer>
+
+    </div><!-- /.app-wrapper -->
+
+    <!-- لاجیک اپلیکیشن -->
+    <script src="app.js"></script>
+</body>
+</html>

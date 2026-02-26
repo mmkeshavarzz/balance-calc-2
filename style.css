@@ -1,0 +1,1348 @@
+/* ================================================================
+ *  📊 Kankor Dashboard v1.2.2 — Stylesheet
+ *  ================================================================
+ *  Design System: Bento Grid 30% + Glassmorphism 40% + Neumorphism 30%
+ *  Theme: Pearl White + Pastel Accents
+ *  Author: Kankor Dashboard Team
+ *  Last Updated: 2026-02-26
+ * ================================================================ */
+
+
+/* ============================================================
+   🎨 SECTION 1: CSS Custom Properties (Design Tokens)
+   ============================================================
+   تمام رنگ‌ها، سایه‌ها، فاصله‌ها و ترنزیشن‌ها به صورت
+   متغیر تعریف شدن تا تم‌بندی و نگهداری آسون‌تر باشه
+   ============================================================ */
+:root {
+    /* --- پس‌زمینه‌ها --- */
+    --bg-shell:         #F8F6F2;
+    --bg-card:          rgba(255, 255, 255, 0.55);
+    --bg-card-hover:    rgba(255, 255, 255, 0.75);
+    --border-glass:     rgba(255, 255, 255, 0.45);
+
+    /* --- سایه‌های نئومورفیسم --- */
+    --shadow-neo-light: #ffffff;
+    --shadow-neo-dark:  rgba(174, 174, 192, 0.35);
+
+    /* --- پالت پاستیلی (۱۰ رنگ) --- */
+    --pastel-pink:      #FFB5C2;
+    --pastel-blue:      #B5D8FF;
+    --pastel-green:     #B5FFCB;
+    --pastel-purple:    #D4B5FF;
+    --pastel-yellow:    #FFF0B5;
+    --pastel-orange:    #FFD4B5;
+    --pastel-mint:      #B5FFE8;
+    --pastel-lavender:  #E8B5FF;
+    --pastel-peach:     #FFCEB5;
+    --pastel-sky:       #B5EEFF;
+
+    /* --- تایپوگرافی --- */
+    --text-primary:     #2D2D3A;
+    --text-secondary:   #6B6B80;
+    --text-muted:       #9999AB;
+
+    /* --- گرادیان‌ها --- */
+    --accent-gradient:  linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --warning-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    --danger-gradient:  linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+
+    /* --- بوردر ردیوس --- */
+    --radius-sm:  12px;
+    --radius-md:  18px;
+    --radius-lg:  24px;
+    --radius-xl:  32px;
+
+    /* --- ترنزیشن --- */
+    --transition-smooth: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+
+/* ============================================================
+   🔄 SECTION 2: Reset & Base
+   ============================================================ */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-shell);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.7;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* اسکرول‌بار سفارشی */
+::selection {
+    background: rgba(212, 181, 255, 0.35);
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-shell);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(174, 174, 192, 0.35);
+    border-radius: 50px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(174, 174, 192, 0.55);
+}
+
+
+/* ============================================================
+   🫧 SECTION 3: Decorative Bubbles (پس‌زمینه حبابی)
+   ============================================================ */
+body::before,
+body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.3;
+    z-index: 0;
+    pointer-events: none;
+}
+
+body::before {
+    width: 500px;
+    height: 500px;
+    background: var(--pastel-pink);
+    top: -120px;
+    right: -120px;
+    animation: floatBubble 18s ease-in-out infinite;
+}
+
+body::after {
+    width: 450px;
+    height: 450px;
+    background: var(--pastel-blue);
+    bottom: -100px;
+    left: -100px;
+    animation: floatBubble 22s ease-in-out infinite reverse;
+}
+
+.deco-bubble {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.2;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.deco-bubble--1 {
+    width: 300px;
+    height: 300px;
+    background: var(--pastel-purple);
+    top: 40%;
+    left: 50%;
+    animation: floatBubble 25s ease-in-out infinite;
+}
+
+.deco-bubble--2 {
+    width: 250px;
+    height: 250px;
+    background: var(--pastel-mint);
+    top: 70%;
+    right: 20%;
+    animation: floatBubble 20s ease-in-out infinite reverse;
+}
+
+
+/* ============================================================
+   🏗️ SECTION 4: App Wrapper (لایه محتوا)
+   ============================================================ */
+.app-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+}
+
+
+/* ============================================================
+   🏷️ SECTION 5: Header
+   ============================================================ */
+.app-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 28px 24px;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid var(--border-glass);
+    border-radius: var(--radius-xl);
+    box-shadow:
+        8px 8px 20px var(--shadow-neo-dark),
+        -8px -8px 20px var(--shadow-neo-light);
+}
+
+.app-header__logo {
+    font-size: 2.6rem;
+    margin-bottom: 4px;
+    animation: bounceIn 0.8s ease;
+}
+
+.app-header__title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+}
+
+.app-header__subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.app-header__meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.app-header__badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 50px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.badge--date     { background: linear-gradient(135deg, var(--pastel-yellow), var(--pastel-orange)); }
+.badge--version  { background: linear-gradient(135deg, var(--pastel-blue), var(--pastel-sky)); }
+.badge--accuracy { background: linear-gradient(135deg, var(--pastel-pink), var(--pastel-lavender)); }
+
+
+/* ============================================================
+   🔘 SECTION 6: Field Selector (انتخاب رشته)
+   ============================================================ */
+.field-selector {
+    margin-bottom: 28px;
+}
+
+.field-selector__label {
+    display: block;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--text-primary);
+}
+
+.field-selector__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+
+.field-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 10px;
+    border: 2.5px solid transparent;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    transition: var(--transition-smooth);
+    background: var(--bg-shell);
+    box-shadow:
+        5px 5px 14px var(--shadow-neo-dark),
+        -5px -5px 14px var(--shadow-neo-light);
+}
+
+.field-btn__icon {
+    font-size: 2rem;
+    transition: transform 0.3s ease;
+}
+
+.field-btn:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        7px 7px 20px var(--shadow-neo-dark),
+        -7px -7px 20px var(--shadow-neo-light);
+}
+
+.field-btn:hover .field-btn__icon {
+    transform: scale(1.15) rotate(-5deg);
+}
+
+/* حالت فعال */
+.field-btn.active {
+    background: var(--bg-card-hover);
+    backdrop-filter: blur(16px);
+    border-color: var(--pastel-purple);
+    box-shadow:
+        0 4px 24px rgba(212, 181, 255, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.field-btn.active::after {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--success-gradient);
+    color: #fff;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    animation: popIn 0.3s ease;
+}
+
+
+/* ============================================================
+   📚 SECTION 7: Scores Section (ورود نمرات)
+   ============================================================ */
+.scores-section {
+    margin-bottom: 28px;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+}
+
+.scores-section.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.section-title {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.section-title__line {
+    flex: 1;
+    max-width: 80px;
+    height: 2.5px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, transparent, var(--pastel-purple), transparent);
+}
+
+
+/* ============================================================
+   🃏 SECTION 8: Subject Panels (کارت هر درس)
+   ============================================================ */
+.subjects-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.subject-panel {
+    position: relative;
+    padding: 20px 18px 16px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    background: var(--bg-card);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1.5px solid var(--border-glass);
+    box-shadow:
+        5px 5px 15px var(--shadow-neo-dark),
+        -5px -5px 15px var(--shadow-neo-light);
+    animation: cardSlideUp 0.5s ease backwards;
+}
+
+/* نوار رنگی بالای هر پنل */
+.subject-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 4px;
+    border-radius: 4px 4px 0 0;
+}
+
+.subject-panel:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        8px 8px 25px var(--shadow-neo-dark),
+        -8px -8px 25px var(--shadow-neo-light);
+}
+
+/* رنگ‌بندی نوار بالایی بر اساس data-color */
+.subject-panel[data-color="pink"]::before     { background: var(--pastel-pink); }
+.subject-panel[data-color="blue"]::before     { background: var(--pastel-blue); }
+.subject-panel[data-color="green"]::before    { background: var(--pastel-green); }
+.subject-panel[data-color="purple"]::before   { background: var(--pastel-purple); }
+.subject-panel[data-color="yellow"]::before   { background: var(--pastel-yellow); }
+.subject-panel[data-color="orange"]::before   { background: var(--pastel-orange); }
+.subject-panel[data-color="mint"]::before     { background: var(--pastel-mint); }
+.subject-panel[data-color="lavender"]::before { background: var(--pastel-lavender); }
+.subject-panel[data-color="peach"]::before    { background: var(--pastel-peach); }
+.subject-panel[data-color="sky"]::before      { background: var(--pastel-sky); }
+
+/* هدر هر پنل */
+.subject-panel__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.subject-panel__emoji {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    background: var(--bg-shell);
+    box-shadow:
+        inset 3px 3px 6px var(--shadow-neo-dark),
+        inset -3px -3px 6px var(--shadow-neo-light);
+}
+
+.subject-panel__info {
+    flex: 1;
+}
+
+.subject-panel__name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.subject-panel__meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.subject-panel__avg {
+    padding: 4px 12px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--pastel-green), var(--pastel-mint));
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+
+/* ============================================================
+   📏 SECTION 9: Grades Grid (گرید پایه‌ها)
+   ============================================================ */
+.grades-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.grades-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.grades-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.grades-grid--1 { grid-template-columns: 1fr; max-width: 320px; }
+
+.grade-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.grade-label {
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.grade-label__badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+.grade-label__badge--10 { background: var(--pastel-blue);   color: var(--text-primary); }
+.grade-label__badge--11 { background: var(--pastel-yellow); color: var(--text-primary); }
+.grade-label__badge--12 { background: var(--pastel-pink);   color: var(--text-primary); }
+
+
+/* ============================================================
+   🔢 SECTION 10: Percent Inputs (ورودی درصد)
+   ============================================================ */
+.percent-input-wrapper {
+    position: relative;
+}
+
+.percent-input {
+    width: 100%;
+    height: 46px;
+    padding: 0 32px 0 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+    direction: ltr;
+    background: var(--bg-shell);
+    box-shadow:
+        inset 3px 3px 8px var(--shadow-neo-dark),
+        inset -3px -3px 8px var(--shadow-neo-light);
+    transition: var(--transition-smooth);
+    outline: none;
+}
+
+.percent-input:focus {
+    box-shadow:
+        inset 3px 3px 8px var(--shadow-neo-dark),
+        inset -3px -3px 8px var(--shadow-neo-light),
+        0 0 0 3px rgba(212, 181, 255, 0.35);
+}
+
+.percent-input::placeholder {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 0.78rem;
+}
+
+/* حذف اسپینر عددی مرورگر */
+.percent-input::-webkit-inner-spin-button,
+.percent-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.percent-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+.percent-symbol {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* اعتبارسنجی بصری */
+.percent-input.input--invalid {
+    box-shadow:
+        inset 3px 3px 8px var(--shadow-neo-dark),
+        inset -3px -3px 8px var(--shadow-neo-light),
+        0 0 0 3px rgba(255, 107, 107, 0.3) !important;
+}
+
+.percent-input.input--valid {
+    box-shadow:
+        inset 3px 3px 8px var(--shadow-neo-dark),
+        inset -3px -3px 8px var(--shadow-neo-light),
+        0 0 0 3px rgba(67, 233, 123, 0.25) !important;
+}
+
+
+/* ============================================================
+   📊 SECTION 11: Progress Bar (نوار پیشرفت)
+   ============================================================ */
+.subject-panel__progress {
+    margin-top: 12px;
+    height: 5px;
+    border-radius: 50px;
+    background: rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.subject-panel__progress-bar {
+    height: 100%;
+    border-radius: 50px;
+    width: 0%;
+    transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* رنگ نوار پیشرفت بر اساس data-color والد */
+.subject-panel[data-color="pink"]     .subject-panel__progress-bar { background: var(--pastel-pink); }
+.subject-panel[data-color="blue"]     .subject-panel__progress-bar { background: var(--pastel-blue); }
+.subject-panel[data-color="green"]    .subject-panel__progress-bar { background: var(--pastel-green); }
+.subject-panel[data-color="purple"]   .subject-panel__progress-bar { background: var(--pastel-purple); }
+.subject-panel[data-color="yellow"]   .subject-panel__progress-bar { background: var(--pastel-yellow); }
+.subject-panel[data-color="orange"]   .subject-panel__progress-bar { background: var(--pastel-orange); }
+.subject-panel[data-color="mint"]     .subject-panel__progress-bar { background: var(--pastel-mint); }
+.subject-panel[data-color="lavender"] .subject-panel__progress-bar { background: var(--pastel-lavender); }
+.subject-panel[data-color="peach"]    .subject-panel__progress-bar { background: var(--pastel-peach); }
+.subject-panel[data-color="sky"]      .subject-panel__progress-bar { background: var(--pastel-sky); }
+
+
+/* ============================================================
+   📊 SECTION 12: Result Section (بنتو گرید نتایج)
+   ============================================================ */
+.result-section {
+    margin-bottom: 28px;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+}
+
+.result-section.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.result-bento {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 16px;
+}
+
+/* --- کارت تراز اصلی (بزرگ‌ترین کارت) --- */
+.result-card--main {
+    grid-column: 1 / 3;
+    padding: 28px 24px;
+    border-radius: var(--radius-xl);
+    text-align: center;
+    background: var(--bg-card);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1.5px solid var(--border-glass);
+    box-shadow:
+        8px 8px 24px var(--shadow-neo-dark),
+        -8px -8px 24px var(--shadow-neo-light);
+}
+
+.result-card--main .result-traz-big {
+    font-size: 3.5rem;
+    font-weight: 900;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+}
+
+.result-card--main .result-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.result-card--main .result-formula {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 6px 16px;
+    border-radius: 50px;
+    background: rgba(102, 126, 234, 0.08);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    direction: ltr;
+}
+
+/* --- کارت‌های کوچک نتیجه --- */
+.result-card--small {
+    padding: 20px 16px;
+    border-radius: var(--radius-lg);
+    text-align: center;
+    background: var(--bg-shell);
+    box-shadow:
+        5px 5px 14px var(--shadow-neo-dark),
+        -5px -5px 14px var(--shadow-neo-light);
+}
+
+.result-card--small .result-small-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.result-card--small .result-small-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.result-card--small .result-small-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* --- کارت لیگ --- */
+.result-card--league {
+    grid-column: 1 / 3;
+    padding: 20px 24px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1.5px solid var(--border-glass);
+    box-shadow:
+        5px 5px 14px var(--shadow-neo-dark),
+        -5px -5px 14px var(--shadow-neo-light);
+    flex-wrap: wrap;
+}
+
+.league-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.league-emoji {
+    font-size: 2.2rem;
+}
+
+.league-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.league-name {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.league-university {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.league-badge {
+    padding: 6px 16px;
+    border-radius: 50px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: var(--accent-gradient);
+    color: #fff;
+}
+
+/* --- کارت جزئیات دروس --- */
+.result-card--details {
+    grid-column: 1 / 3;
+    padding: 20px 18px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1.5px solid var(--border-glass);
+    box-shadow:
+        5px 5px 14px var(--shadow-neo-dark),
+        -5px -5px 14px var(--shadow-neo-light);
+}
+
+.details-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    background: rgba(0, 0, 0, 0.015);
+}
+
+.detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.detail-subject {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+.detail-avg {
+    font-weight: 800;
+    font-size: 0.88rem;
+    padding: 3px 10px;
+    border-radius: 50px;
+    background: var(--bg-shell);
+    box-shadow:
+        inset 2px 2px 5px var(--shadow-neo-dark),
+        inset -2px -2px 5px var(--shadow-neo-light);
+}
+
+/* --- کارت اهداف --- */
+.result-card--targets {
+    grid-column: 1 / 3;
+    padding: 20px 18px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1.5px solid var(--border-glass);
+    box-shadow:
+        5px 5px 14px var(--shadow-neo-dark),
+        -5px -5px 14px var(--shadow-neo-light);
+}
+
+.targets-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.target-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    font-size: 0.78rem;
+    transition: var(--transition-smooth);
+}
+
+.target-row:last-child {
+    margin-bottom: 0;
+}
+
+.target-row:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.target-name {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.target-status {
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 50px;
+    font-size: 0.72rem;
+}
+
+.target-status--reached { background: linear-gradient(135deg, var(--pastel-green), var(--pastel-mint));   color: #2d6a4f; }
+.target-status--close   { background: linear-gradient(135deg, var(--pastel-yellow), var(--pastel-orange)); color: #7c5200; }
+.target-status--far     { background: linear-gradient(135deg, var(--pastel-pink), var(--pastel-peach));   color: #8b2252; }
+
+/* --- Placeholder (حالت خالی) --- */
+.result-placeholder {
+    grid-column: 1 / 3;
+    text-align: center;
+    padding: 40px 24px;
+    border-radius: var(--radius-xl);
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 2px dashed rgba(174, 174, 192, 0.25);
+}
+
+.result-placeholder__icon {
+    font-size: 3rem;
+    margin-bottom: 8px;
+}
+
+.result-placeholder__text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   🔘 SECTION 13: Action Buttons (دکمه‌ها)
+   ============================================================ */
+.actions-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 26px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.btn--primary {
+    background: var(--accent-gradient);
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(102, 126, 234, 0.35);
+}
+
+.btn--primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(102, 126, 234, 0.45);
+}
+
+.btn--primary:active { transform: translateY(0); }
+
+.btn--export {
+    background: linear-gradient(135deg, var(--pastel-green), var(--pastel-mint));
+    color: var(--text-primary);
+    box-shadow: 0 4px 14px rgba(181, 255, 203, 0.4);
+}
+
+.btn--export:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(181, 255, 203, 0.55);
+}
+
+.btn--danger {
+    background: var(--danger-gradient);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(238, 90, 36, 0.3);
+}
+
+.btn--danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(238, 90, 36, 0.4);
+}
+
+.btn__icon {
+    font-size: 1.1rem;
+}
+
+
+/* ============================================================
+   🐾 SECTION 14: Footer
+   ============================================================ */
+.app-footer {
+    text-align: center;
+    padding: 20px 0 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+
+/* ============================================================
+   ✨ SECTION 15: Animations (انیمیشن‌ها)
+   ============================================================ */
+@keyframes floatBubble {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(30px, -40px) scale(1.05); }
+    66%      { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+@keyframes bounceIn {
+    0%   { transform: scale(0.3); opacity: 0; }
+    50%  { transform: scale(1.08); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes popIn {
+    0%   { transform: scale(0); }
+    70%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes cardSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(25px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ورود ترتیبی کارت‌های نتیجه */
+.result-bento > * {
+    animation: fadeInScale 0.5s ease backwards;
+}
+
+.result-bento > *:nth-child(1) { animation-delay: 0.05s; }
+.result-bento > *:nth-child(2) { animation-delay: 0.10s; }
+.result-bento > *:nth-child(3) { animation-delay: 0.15s; }
+.result-bento > *:nth-child(4) { animation-delay: 0.20s; }
+.result-bento > *:nth-child(5) { animation-delay: 0.25s; }
+.result-bento > *:nth-child(6) { animation-delay: 0.30s; }
+
+/* ورود ترتیبی پنل‌های دروس */
+.subjects-container .subject-panel:nth-child(1) { animation-delay: 0.05s; }
+.subjects-container .subject-panel:nth-child(2) { animation-delay: 0.10s; }
+.subjects-container .subject-panel:nth-child(3) { animation-delay: 0.15s; }
+.subjects-container .subject-panel:nth-child(4) { animation-delay: 0.20s; }
+.subjects-container .subject-panel:nth-child(5) { animation-delay: 0.25s; }
+.subjects-container .subject-panel:nth-child(6) { animation-delay: 0.30s; }
+.subjects-container .subject-panel:nth-child(7) { animation-delay: 0.35s; }
+.subjects-container .subject-panel:nth-child(8) { animation-delay: 0.40s; }
+
+
+/* ============================================================
+   📱 SECTION 16: Responsive — Tablet (≤ 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+    .app-wrapper {
+        padding: 16px 14px 32px;
+    }
+
+    .app-header {
+        padding: 22px 16px;
+    }
+
+    .app-header__title {
+        font-size: 1.3rem;
+    }
+
+    .field-selector__grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .grades-grid--3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .result-bento {
+        grid-template-columns: 1fr;
+    }
+
+    .result-card--main,
+    .result-card--league,
+    .result-card--targets,
+    .result-card--details {
+        grid-column: auto;
+    }
+
+    .result-card--league {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .result-placeholder {
+        grid-column: auto;
+    }
+
+    .actions-row {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}
+
+
+/* ============================================================
+   📱 SECTION 17: Responsive — Mobile (≤ 480px)
+   ============================================================ */
+@media (max-width: 480px) {
+    html {
+        font-size: 14px;
+    }
+
+    .app-header__logo {
+        font-size: 2rem;
+    }
+
+    .app-header__title {
+        font-size: 1.15rem;
+    }
+
+    .app-header__meta {
+        gap: 6px;
+    }
+
+    .field-selector__grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .field-btn {
+        padding: 14px 6px;
+        font-size: 0.78rem;
+    }
+
+    .field-btn__icon {
+        font-size: 1.5rem;
+    }
+
+    .grades-grid--3,
+    .grades-grid--2 {
+        grid-template-columns: 1fr;
+    }
+
+    .subject-panel {
+        padding: 16px 14px 14px;
+    }
+
+    .subject-panel__header {
+        flex-wrap: wrap;
+    }
+
+    .result-card--main .result-traz-big {
+        font-size: 2.6rem;
+    }
+
+    .target-row {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+    }
+}
+
+/* ============================================================
+   🔘 SECTION 18: Toggle Switches (سوئیچ خاموش/روشن)
+   ============================================================
+   دو نوع تاگل داریم:
+   1) تاگل کل درس (روی هدر پنل)
+   2) تاگل تکی هر پایه (کنار اینپوت)
+   ============================================================ */
+
+/* --- Toggle Switch Base --- */
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.toggle-switch__input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.toggle-switch__slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 50px;
+    transition: var(--transition-smooth);
+    background: var(--bg-shell);
+    box-shadow:
+        inset 2px 2px 5px var(--shadow-neo-dark),
+        inset -2px -2px 5px var(--shadow-neo-light);
+}
+
+.toggle-switch__slider::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--pastel-pink);
+    transition: var(--transition-smooth);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* حالت فعال (روشن) */
+.toggle-switch__input:checked + .toggle-switch__slider {
+    box-shadow:
+        inset 2px 2px 5px var(--shadow-neo-dark),
+        inset -2px -2px 5px var(--shadow-neo-light),
+        0 0 0 2px rgba(67, 233, 123, 0.2);
+}
+
+.toggle-switch__input:checked + .toggle-switch__slider::after {
+    right: calc(100% - 19px);
+    background: var(--pastel-green);
+}
+
+.toggle-switch__label-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* --- تاگل کل درس (بزرگ‌تر) --- */
+.toggle-subject {
+    margin-right: auto;
+    flex-shrink: 0;
+}
+
+.toggle-subject .toggle-switch__slider {
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-subject .toggle-switch__slider::after {
+    width: 18px;
+    height: 18px;
+}
+
+.toggle-subject .toggle-switch__input:checked + .toggle-switch__slider::after {
+    right: calc(100% - 21px);
+}
+
+/* --- تاگل تکی پایه (کوچیک‌تر) --- */
+.toggle-grade {
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.toggle-grade .toggle-switch__slider {
+    width: 32px;
+    height: 18px;
+}
+
+.toggle-grade .toggle-switch__slider::after {
+    width: 12px;
+    height: 12px;
+    top: 3px;
+    right: 3px;
+}
+
+.toggle-grade .toggle-switch__input:checked + .toggle-switch__slider::after {
+    right: calc(100% - 15px);
+}
+
+
+/* ============================================================
+   🔘 SECTION 19: Disabled States (حالت غیرفعال)
+   ============================================================ */
+
+/* --- کل پنل درس غیرفعال --- */
+.subject-panel.panel--disabled {
+    opacity: 0.4;
+    filter: grayscale(0.6);
+    pointer-events: none;
+    transform: scale(0.98);
+}
+
+/* فقط تاگل اصلی همچنان قابل کلیکه */
+.subject-panel.panel--disabled .toggle-subject {
+    pointer-events: all;
+    opacity: 1;
+    filter: none;
+}
+
+/* --- تک پایه غیرفعال --- */
+.grade-input-group.grade--disabled {
+    opacity: 0.35;
+    filter: grayscale(0.5);
+}
+
+.grade-input-group.grade--disabled .percent-input {
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.04);
+    box-shadow:
+        inset 2px 2px 5px rgba(174, 174, 192, 0.15),
+        inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+}
+
+/* --- بج «غیرفعال» --- */
+.disabled-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 50px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    background: var(--danger-gradient);
+    color: #fff;
+    margin-right: 6px;
+    animation: popIn 0.3s ease;
+}
+
+/* --- Strikethrough برای اسم درس غیرفعال --- */
+.subject-panel.panel--disabled .subject-panel__name {
+    text-decoration: line-through;
+    text-decoration-color: var(--pastel-pink);
+    text-decoration-thickness: 2px;
+}
+
+
+/* ============================================================
+   📸 SECTION 20: Export Overlay (لایه موقت خروجی PNG)
+   ============================================================
+   وقتی exportPNG صدا زده میشه، یک wrapper مخفی ساخته میشه
+   این استایل‌ها فقط برای اون wrapper هستن
+   ============================================================ */
+#exportWrapper {
+    /* مطمئن میشیم backdrop-filter و filter مشکل نسازن */
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    filter: none !important;
+}
+
+#exportWrapper * {
+    /* حذف هرگونه filter یا backdrop از المان‌های داخلی */
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
