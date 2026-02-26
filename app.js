@@ -20,9 +20,17 @@
  * ──────────────────────────────────────────────────────────────── */
 
 const MODEL_CONFIG = {
-    version: "6.1",
-    beta0: 4350,
-    k: 40.2,
+    /* نسخه مدل */
+    version: "8.0",
+
+    /* ───── ضرایب رگرسیون — v8.0 ───── */
+    beta0:   6573.5,     // عرض از مبدأ (intercept)
+    k1:      -42.74,     // ضریب خطی  (Sw)
+    k2:        0.7042,   // ضریب درجه ۲ (Sw²)
+    k3:      -23.90,     // ضریب انحراف معیار وزن‌دار (σ)
+    k4:      -30.08,     // ضریب coverage factor  ((1−φ)·Sw)
+
+    /* ───── وزن پایه‌ها (بدون تغییر) ───── */
     gradeWeights: {
         10: 1.0,
         11: 1.5,
@@ -603,12 +611,39 @@ function restoreSavedValues() {
  *  🧮 SECTION 10: Calculation Engine (هسته محاسباتی)
  * ──────────────────────────────────────────────────────────────── */
 
+/* ────────────────────────────────────────────────────────────────
+ *  🧮 SECTION 10: Calculation Engine v8.0 (هسته محاسباتی)
+ *  ────────────────────────────────────────────────────────────────
+ *  Formula:  T = β₀ + k₁·Sw + k₂·Sw² + k₃·σ + k₄·(1−φ)·Sw
+ *
+ *  Sw  = میانگین وزن‌دار کل (Weighted Average)
+ *  σ   = انحراف معیار وزن‌دار (Weighted Std Deviation)
+ *  φ   = نسبت پوشش پایه‌ها (Coverage Ratio)
+ *
+ *  Changelog:
+ *    v6.1 → v8.0  —  اضافه شدن جمله درجه ۲، انحراف معیار و coverage
+ * ──────────────────────────────────────────────────────────────── */
+
+/**
+ * ⚖️ وزن هر پایه تحصیلی
+ * دوازدهم بیشترین تأثیر رو داره چون به کنکور نزدیک‌تره
+ *
+ * @param {number} grade - شماره پایه (10, 11, 12)
+ * @returns {number} وزن پایه
+ */
 function getGradeWeight(grade) {
     return MODEL_CONFIG.gradeWeights[grade] || 1.0;
 }
 
 /**
- * میانگین وزن‌دار — فقط پایه‌های فعال
+ * 📊 میانگین وزن‌دار یک درس — فقط پایه‌های فعال
+ *
+ * avg = Σ(αᵢ × pᵢ) / Σ(αᵢ)
+ * αᵢ = وزن پایه  |  pᵢ = درصد پایه
+ *
+ * @param {Object} scores       - درصدهای وارد شده { 10: 45, 12: 80, ... }
+ * @param {Array}  activeGrades - لیست پایه‌های فعال [10, 11, 12]
+ * @returns {number} میانگین وزن‌دار (0 تا 100)
  */
 function calcSubjectAverage(scores, activeGrades) {
     let numerator   = 0;
@@ -627,7 +662,14 @@ function calcSubjectAverage(scores, activeGrades) {
 }
 
 /**
- * نمره وزن‌دار نهایی — فقط دروس فعال
+ * 🎯 نمره وزن‌دار نهایی (Sw) — فقط دروس فعال
+ *
+ * Sw = Σ(wⱼ × avgⱼ) / Σ(wⱼ)
+ * wⱼ = ضریب کنکور درس  |  avgⱼ = میانگین وزن‌دار درس
+ *
+ * @param {Object} subjectAverages - میانگین هر درس { biology: 75, ... }
+ * @param {Object} subjectDefs     - تعریف دروس از MAJORS
+ * @returns {number} نمره وزن‌دار کل (0 تا 100)
  */
 function calcWeightedScore(subjectAverages, subjectDefs) {
     let numerator   = 0;
@@ -645,6 +687,73 @@ function calcWeightedScore(subjectAverages, subjectDefs) {
     return denominator === 0 ? 0 : numerator / denominator;
 }
 
+/**
+ * 📐 انحراف معیار وزن‌دار (Weighted Standard Deviation)
+ *
+ * σ = sqrt( Σ(wⱼ × (avgⱼ − Sw)²) / Σ(wⱼ) )
+ *
+ * هرچی درصد درس‌ها به هم نزدیک‌تر باشن → σ کمتر → تراز بهتر
+ * مثلاً اگه زیست ۹۰ باشه ولی ریاضی ۱۰، انحراف معیار خیلی بالاست
+ *
+ * @param {Object} subjectAverages - میانگین هر درس
+ * @param {Object} subjectDefs     - تعریف دروس
+ * @param {number} Sw              - میانگین وزن‌دار کل
+ * @returns {number} انحراف معیار وزن‌دار
+ */
+function calcWeightedStdDev(subjectAverages, subjectDefs, Sw) {
+    let numerator   = 0;
+    let denominator = 0;
+
+    for (const [key, def] of Object.entries(subjectDefs)) {
+        if (!isSubjectEnabled(key)) continue;
+
+        const w   = def.konkur_weight;
+        const avg = subjectAverages[key] || 0;
+        numerator   += w * Math.pow(avg - Sw, 2);
+        denominator += w;
+    }
+
+    return denominator === 0 ? 0 : Math.sqrt(numerator / denominator);
+}
+
+/**
+ * 📋 نسبت پوشش (Coverage Ratio — φ)
+ *
+ * φ = تعداد پایه‌های پر شده / کل پایه‌های فعال
+ *
+ * اگه همه پایه‌ها رو پر کنی φ=1 و جریمه coverage صفر میشه
+ * اگه فقط نصفشون رو پر کنی φ=0.5 و جریمه بیشتره
+ *
+ * @param {Object} subjectDefs - تعریف دروس
+ * @returns {number} نسبت ۰ تا ۱
+ */
+function calcCoverageRatio(subjectDefs) {
+    let filledCount = 0;
+    let totalCount  = 0;
+
+    for (const [key, def] of Object.entries(subjectDefs)) {
+        if (!isSubjectEnabled(key)) continue;
+
+        def.grades.forEach(grade => {
+            if (!isGradeEnabled(key, grade)) return;
+
+            totalCount++;
+            const input = document.getElementById(`input_${key}_${grade}`);
+            if (input && input.value !== '' && !isNaN(parseFloat(input.value))) {
+                filledCount++;
+            }
+        });
+    }
+
+    return totalCount === 0 ? 0 : filledCount / totalCount;
+}
+
+/**
+ * 🎖️ تعیین سطح بر اساس تراز
+ *
+ * @param {number} traz - تراز محاسبه شده
+ * @returns {Object} شیء سطح شامل name, emoji, university, league
+ */
 function getLevel(traz) {
     const levels = [
         { min: 7500, name: "L5+", emoji: "👑", university: "پزشکی تهران / شهید بهشتی",  league: "لیگ خدایان ⚡"   },
@@ -664,65 +773,80 @@ function getLevel(traz) {
 }
 
 /**
- * 🎯 تابع اصلی محاسبه تراز
+ * 🎯 تابع اصلی محاسبه تراز — v8.0 Polynomial + StdDev + Coverage
+ *
+ * Formula: T = β₀ + k₁·Sw + k₂·Sw² + k₃·σ + k₄·(1−φ)·Sw
+ *
+ * این تابع مرکز تمام محاسبات هست. نتیجه‌ای که برمی‌گردونه
+ * باید دقیقاً با ساختار مورد انتظار renderResult سازگار باشه.
+ *
+ * @param {string} majorKey - کلید رشته (tajrobi, riazi, ensani)
+ * @returns {Object|null} نتیجه محاسبه شامل تراز، جزئیات، فرمول و ...
  */
 function calculateTraz(majorKey) {
     const major = MAJORS[majorKey];
     if (!major) return null;
 
-    const subjectDefs     = major.subjects;
-    const subjectAverages = {};
-    const details         = {};
+    const subjectDefs           = major.subjects;
+    const subjectAverages       = {};
+    const details               = {};
+    const disabledSubjectNames  = [];
+    let   activeSubjectCount    = 0;
 
-    let activeSubjectCount   = 0;
-    let disabledSubjectNames = [];
-
+    /* ═══════════════════════════════════════════════
+     *  گام ۱: محاسبه میانگین وزن‌دار هر درس
+     * ═══════════════════════════════════════════════ */
     for (const [key, def] of Object.entries(subjectDefs)) {
-        const subjectEnabled = isSubjectEnabled(key);
 
-        if (!subjectEnabled) {
+        /* ── درس غیرفعال (toggle OFF) ── */
+        if (!isSubjectEnabled(key)) {
+            subjectAverages[key] = 0;
             disabledSubjectNames.push(def.name);
+
             details[key] = {
-                name:            def.name,
-                emoji:           def.emoji,
-                konkur_weight:   def.konkur_weight,
-                weightedAverage: 0,
-                contribution:    0,
-                disabled:        true,
+                name:             def.name,
+                emoji:            def.emoji,
+                konkur_weight:    def.konkur_weight,
+                weightedAverage:  0,
+                disabled:         true,
+                disabledGrades:   [],
+                activeGradeCount: 0,
+                totalGradeCount:  def.grades.length,
             };
             continue;
         }
 
+        /* ── درس فعال ── */
         activeSubjectCount++;
 
         const scores         = {};
         const activeGrades   = [];
-        let disabledGrades   = [];
+        const disabledGrades = [];
 
         def.grades.forEach(grade => {
+            /* پایه غیرفعال */
             if (!isGradeEnabled(key, grade)) {
                 disabledGrades.push(grade);
                 return;
             }
-            activeGrades.push(grade);
+
+            /* پایه فعال — خوندن مقدار اینپوت */
             const input = document.getElementById(`input_${key}_${grade}`);
-            if (input && input.value !== '') {
+            if (input && input.value !== '' && !isNaN(parseFloat(input.value))) {
                 scores[grade] = parseFloat(input.value);
             }
+            activeGrades.push(grade);
         });
 
-        const avg = activeGrades.length > 0
-            ? calcSubjectAverage(scores, activeGrades)
-            : 0;
-
+        /* محاسبه میانگین وزن‌دار این درس */
+        const avg = calcSubjectAverage(scores, activeGrades);
         subjectAverages[key] = avg;
 
         details[key] = {
             name:             def.name,
             emoji:            def.emoji,
             konkur_weight:    def.konkur_weight,
-            weightedAverage:  Math.round(avg * 100) / 100,
-            contribution:     Math.round(def.konkur_weight * avg * 100) / 100,
+            weightedAverage:  Math.round(avg),
             disabled:         false,
             disabledGrades:   disabledGrades,
             activeGradeCount: activeGrades.length,
@@ -730,56 +854,118 @@ function calculateTraz(majorKey) {
         };
     }
 
-    const weightedScore = calcWeightedScore(subjectAverages, subjectDefs);
-    const traz          = MODEL_CONFIG.beta0 + MODEL_CONFIG.k * weightedScore;
-    const trazRounded   = Math.round(traz);
-    const level         = getLevel(trazRounded);
+    /* ═══════════════════════════════════════════════
+     *  گام ۲: میانگین وزن‌دار کل (Sw)
+     * ═══════════════════════════════════════════════ */
+    const Sw = calcWeightedScore(subjectAverages, subjectDefs);
 
+    /* ═══════════════════════════════════════════════
+     *  گام ۳: انحراف معیار وزن‌دار (σ)
+     * ═══════════════════════════════════════════════ */
+    const sigma = calcWeightedStdDev(subjectAverages, subjectDefs, Sw);
+
+    /* ═══════════════════════════════════════════════
+     *  گام ۴: نسبت پوشش (φ)
+     * ═══════════════════════════════════════════════ */
+    const phi = calcCoverageRatio(subjectDefs);
+
+    /* ═══════════════════════════════════════════════
+     *  گام ۵: فرمول نهایی v8.0
+     *
+     *  T = β₀ + k₁·Sw + k₂·Sw² + k₃·σ + k₄·(1−φ)·Sw
+     * ═══════════════════════════════════════════════ */
+    const { beta0, k1, k2, k3, k4 } = MODEL_CONFIG;
+
+    let traz = beta0
+             + k1 * Sw
+             + k2 * Math.pow(Sw, 2)
+             + k3 * sigma
+             + k4 * (1 - phi) * Sw;
+
+    /* Clamping — تراز بین ۵۰۰۰ تا ۱۰۰۰۰ محدود میشه */
+    traz = Math.max(5000, Math.min(10000, Math.round(traz)));
+
+    /* ═══════════════════════════════════════════════
+     *  گام ۶: تعیین سطح
+     * ═══════════════════════════════════════════════ */
+    const level = getLevel(traz);
+
+    /* ═══════════════════════════════════════════════
+     *  گام ۷: ساخت رشته فرمول برای نمایش
+     *
+     *  نمایش خوانا از فرمول با اعداد واقعی
+     *  مثال: 6573.5 + (-42.74×62.3) + (0.70×62.3²) + (-23.90×8.4) + (-30.08×0.15×62.3)
+     * ═══════════════════════════════════════════════ */
+    const swRound    = Sw.toFixed(1);
+    const sigmaRound = sigma.toFixed(1);
+    const gapRound   = (1 - phi).toFixed(2);
+
+    const formulaStr = `${beta0} + (${k1}×${swRound}) + (${k2}×${swRound}²) + (${k3}×${sigmaRound}) + (${k4}×${gapRound}×${swRound})`;
+
+    /* ═══════════════════════════════════════════════
+     *  گام ۸: خروجی نهایی
+     *
+     *  ⚠️ این ساختار باید دقیقاً با renderResult (SECTION 11)
+     *     و drawResultCanvas (SECTION 12) سازگار باشه!
+     * ═══════════════════════════════════════════════ */
     return {
-        major:                major.name,
-        majorEmoji:           major.emoji,
-        traz:                 trazRounded,
-        weightedScore:        Math.round(weightedScore * 100) / 100,
+        /* ─── اعداد اصلی ─── */
+        traz,
+        weightedScore:  Math.round(Sw * 100) / 100,
+        sigma:          Math.round(sigma * 100) / 100,
+        phi:            Math.round(phi * 100) / 100,
+
+        /* ─── سطح و رشته ─── */
         level,
-        subjectAverages,
+        major:      major.name,
+        majorEmoji: major.emoji,
+
+        /* ─── فرمول قابل نمایش ─── */
+        formula: formulaStr,
+
+        /* ─── جزئیات هر درس ─── */
         details,
-        activeSubjectCount,
-        disabledSubjectNames,
-        formula: `${MODEL_CONFIG.beta0} + ${MODEL_CONFIG.k} × ${Math.round(weightedScore * 100) / 100}`,
+
+        /* ─── آمار دروس ─── */
+        disabledSubjectNames: disabledSubjectNames,
+        activeSubjectCount:   activeSubjectCount,
     };
 }
 
 
 /* ────────────────────────────────────────────────────────────────
- *  📊 SECTION 11: Result Rendering (رندر نتایج)
+ *  📊 SECTION 11: Result Renderer (نمایش‌دهنده نتیجه)
+ *  ────────────────────────────────────────────────────────────────
+ *  وظیفه: تبدیل خروجی calculateTraz به کارت‌های بنتو گرید
+ *
+ *  کارت‌ها:
+ *    1. کارت اصلی تراز (بزرگ)
+ *    2. نمره وزن‌دار (Sw)
+ *    3. سطح و لیگ
+ *    4. انحراف معیار (σ)          ← 🆕 جدید v8.0
+ *    5. نسبت پوشش (φ)            ← 🆕 جدید v8.0
+ *    6. هشدار دروس غیرفعال
+ *    7. جزئیات هر درس
+ *    8. فاصله تا اهداف
+ *
+ *  Changelog:
+ *    v6.1 → v8.0  —  اضافه شدن کارت‌های σ و φ
  * ──────────────────────────────────────────────────────────────── */
 
-function runCalculation() {
-    if (!currentField) {
-        showToast('🎓 اول رشته‌ات رو انتخاب کن!');
-        return;
-    }
-
-    const result = calculateTraz(currentField);
-    if (!result) return;
-
-    renderResult(result);
-
-    setTimeout(() => {
-        document.getElementById('resultSection').scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
-    }, 200);
-}
-
+/**
+ * 🖥️ رندر نتیجه محاسبه در بنتو گرید
+ *
+ * @param {Object} result - خروجی calculateTraz شامل تراز، سطح، جزئیات و ...
+ */
 function renderResult(result) {
     const bento = document.getElementById('resultBento');
     if (!bento) return;
 
     const level = result.level;
 
-    /* ───── پیام هشدار دروس خاموش ───── */
+    /* ═══════════════════════════════════════════════
+     *  ⚠️ بلاک هشدار دروس غیرفعال
+     * ═══════════════════════════════════════════════ */
     let disabledWarningHTML = '';
     if (result.disabledSubjectNames.length > 0) {
         disabledWarningHTML = `
@@ -795,11 +981,13 @@ function renderResult(result) {
         `;
     }
 
-    /* ───── تارگت‌ها ───── */
+    /* ═══════════════════════════════════════════════
+     *  🎯 بلاک تارگت‌ها (فاصله تا اهداف)
+     * ═══════════════════════════════════════════════ */
     const targets = [
         { name: "L1 — پزشکی آزاد،پردیس،مازاد",            traz: 5700 },
         { name: "L2 — پزشکی یاسوج،بوشهر،ایلام،ساری،یزد،ارومیه،کاشان،زنجان",     traz: 5900 },
-        { name: "L3 — پزشکی کرمانگیلان،تبریز،اهواز،کرمانشاه،همدان،بابل",     traz: 6300 },
+        { name: "L3 — پزشکی کرمان‌گیلان،تبریز،اهواز،کرمانشاه،همدان،بابل",     traz: 6300 },
         { name: "L4 — پزشکی شیراز،اصفهان،مشهد",      traz: 6700 },
         { name: "L4+ — پزشکی قطعی شیراز،اصفهان،مشهد",   traz: 7000 },
         { name: "L5 — پزشکی تهران،بهشتی،ایران",     traz: 7200 },
@@ -808,6 +996,7 @@ function renderResult(result) {
     const targetsHTML = targets.map(t => {
         const diff = t.traz - result.traz;
         let statusClass, statusText;
+
         if (diff <= 0) {
             statusClass = 'target-status--reached';
             statusText  = '✅ رسیدی!';
@@ -818,6 +1007,7 @@ function renderResult(result) {
             statusClass = 'target-status--far';
             statusText  = `⬆️ +${diff} تراز`;
         }
+
         return `
             <div class="target-row">
                 <span class="target-name">${t.name}</span>
@@ -826,10 +1016,13 @@ function renderResult(result) {
         `;
     }).join('');
 
-    /* ───── جزئیات هر درس ───── */
+    /* ═══════════════════════════════════════════════
+     *  📋 بلاک جزئیات هر درس
+     * ═══════════════════════════════════════════════ */
     const detailsHTML = Object.entries(result.details).map(([key, d]) => {
         const isDisabled = d.disabled;
 
+        /* نمایش تعداد پایه‌های فعال اگه همشون فعال نیستن */
         let gradeInfo = '';
         if (!isDisabled && d.disabledGrades && d.disabledGrades.length > 0) {
             gradeInfo = `<small style="color:var(--pastel-orange);margin-right:4px">
@@ -850,7 +1043,58 @@ function renderResult(result) {
         `;
     }).join('');
 
-    /* ───── HTML نهایی ───── */
+    /* ═══════════════════════════════════════════════
+     *  🆕 بلاک‌های σ و φ — مخصوص v8.0
+     *
+     *  σ (انحراف معیار): هرچی کمتر = بهتر (یکنواختی بیشتر)
+     *  φ (نسبت پوشش):   هرچی بیشتر = بهتر (پر کردن بیشتر)
+     * ═══════════════════════════════════════════════ */
+
+    /* ── رنگ‌بندی σ بر اساس مقدار ── */
+    let sigmaColor, sigmaLabel;
+    if (result.sigma <= 10) {
+        sigmaColor = 'var(--pastel-green)';
+        sigmaLabel = '🎯 عالی — یکنواخت';
+    } else if (result.sigma <= 20) {
+        sigmaColor = 'var(--pastel-blue)';
+        sigmaLabel = '📊 خوب — تقریباً یکنواخت';
+    } else if (result.sigma <= 30) {
+        sigmaColor = 'var(--pastel-orange)';
+        sigmaLabel = '⚠️ متوسط — نوسان زیاد';
+    } else {
+        sigmaColor = 'var(--pastel-red)';
+        sigmaLabel = '🔴 ضعیف — خیلی ناهماهنگ';
+    }
+
+    /* ── رنگ‌بندی φ بر اساس مقدار ── */
+    let phiColor, phiLabel;
+    const phiPercent = Math.round(result.phi * 100);
+    if (result.phi >= 0.9) {
+        phiColor = 'var(--pastel-green)';
+        phiLabel = '✅ عالی — تقریباً کامل';
+    } else if (result.phi >= 0.7) {
+        phiColor = 'var(--pastel-blue)';
+        phiLabel = '📝 خوب — بیشتر پر شده';
+    } else if (result.phi >= 0.5) {
+        phiColor = 'var(--pastel-orange)';
+        phiLabel = '⚠️ متوسط — نصفه کاره';
+    } else {
+        phiColor = 'var(--pastel-red)';
+        phiLabel = '🔴 ناکافی — خیلی کم پر شده';
+    }
+
+    /* ═══════════════════════════════════════════════
+     *  🖼️ HTML نهایی — بنتو گرید
+     *
+     *  ترتیب کارت‌ها:
+     *    [  تراز اصلی (بزرگ)          ]
+     *    [ نمره وزن‌دار ][ سطح        ]
+     *    [ انحراف معیار ][ نسبت پوشش  ]   ← 🆕
+     *    [    لیگ و دانشگاه           ]
+     *    [  هشدار دروس غیرفعال        ]
+     *    [    جزئیات دروس             ]
+     *    [    فاصله تا اهداف          ]
+     * ═══════════════════════════════════════════════ */
     bento.innerHTML = `
         <div class="result-card--main">
             <div class="result-label">${result.majorEmoji} تراز تخمینی رشته ${result.major}</div>
@@ -858,11 +1102,12 @@ function renderResult(result) {
             <div class="result-formula">${result.formula} = ${result.traz}</div>
             <div style="margin-top:8px;font-size:0.72rem;color:var(--text-muted)">
                 ${result.activeSubjectCount} درس فعال از ${Object.keys(result.details).length}
+                · مدل v8.0 — Polynomial + σ + φ
             </div>
         </div>
 
         <div class="result-card--small">
-            <div class="result-small-label">📏 نمره وزن‌دار</div>
+            <div class="result-small-label">📏 نمره وزن‌دار (Sw)</div>
             <div class="result-small-value">${result.weightedScore}</div>
             <div class="result-small-sub">از ۱۰۰</div>
         </div>
@@ -871,6 +1116,18 @@ function renderResult(result) {
             <div class="result-small-label">🎖️ سطح</div>
             <div class="result-small-value">${level.emoji} ${level.name}</div>
             <div class="result-small-sub">${level.league}</div>
+        </div>
+
+        <div class="result-card--small" style="border-right: 3px solid ${sigmaColor};">
+            <div class="result-small-label">📐 انحراف معیار (σ)</div>
+            <div class="result-small-value">${result.sigma}</div>
+            <div class="result-small-sub" style="color:${sigmaColor}">${sigmaLabel}</div>
+        </div>
+
+        <div class="result-card--small" style="border-right: 3px solid ${phiColor};">
+            <div class="result-small-label">📋 نسبت پوشش (φ)</div>
+            <div class="result-small-value">${phiPercent}٪</div>
+            <div class="result-small-sub" style="color:${phiColor}">${phiLabel}</div>
         </div>
 
         <div class="result-card--league">
@@ -898,95 +1155,101 @@ function renderResult(result) {
     `;
 }
 
-function resetResultPanel() {
-    const bento = document.getElementById('resultBento');
-    if (!bento) return;
-    bento.innerHTML = `
-        <div class="result-placeholder">
-            <div class="result-placeholder__icon">🎯</div>
-            <div class="result-placeholder__text">درصدها رو وارد کن و دکمه «محاسبه تراز» رو بزن!</div>
-        </div>
-    `;
-}
 
-
-/* ────────────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════
  *  📸 SECTION 12: PNG Export — Canvas API (بدون html2canvas!)
- * ──────────────────────────────────────────────────────────────── 
- *  🔥 بازنویسی کامل: به جای html2canvas از Canvas 2D API
- *  مستقیم استفاده میکنیم. اینجوری:
- *    ✅ مشکل صفحه سفید حل میشه
- *    ✅ فونت وزیرمتن درست رندر میشه
- *    ✅ backdrop-filter مشکل نمیسازه
- *    ✅ خروجی همیشه تمیز و A4 عمودی
- *    ✅ فقط اطلاعات ضروری (بدون دکمه/اینپوت/تاگل)
+ *  ════════════════════════════════════════════════════════════════
+ *  بازنویسی کامل: به جای html2canvas از Canvas 2D API مستقیم
+ *  استفاده میکنیم تا:
+ *    ✅ فونت فارسی درست رندر بشه
+ *    ✅ سرعت بالاتر باشه
+ *    ✅ وابستگی خارجی نداشته باشیم
+ *    ✅ کیفیت خروجی کنترل‌شده باشه
+ *
+ *  Changelog:
+ *    v6.1 → v8.0  —  اضافه شدن کارت‌های σ و φ
+ *                 —  آپدیت بج‌ها و اهداف
+ *                 —  نمایش نسخه مدل در هدر
  * ──────────────────────────────────────────────────────────────── */
 
+/**
+ * 📤 خروجی PNG از نتیجه محاسبه
+ *
+ * روند کار:
+ *   1) محاسبه نتیجه
+ *   2) فاز اول: اندازه‌گیری ارتفاع با measureOnly
+ *   3) فاز دوم: رندر نهایی روی canvas با ابعاد دقیق
+ *   4) دانلود فایل PNG
+ */
 function exportPNG() {
     if (!currentField) {
-        showToast('🎓 اول رشته‌ات رو انتخاب کن!');
+        showToast('⚠️ اول رشته رو انتخاب کن!', 'error');
         return;
     }
 
-    /* ───── محاسبه تراز ───── */
     const result = calculateTraz(currentField);
     if (!result) {
-        showToast('❌ خطا در محاسبه!');
+        showToast('❌ خطا در محاسبه تراز', 'error');
         return;
     }
 
-    showToast('📸 در حال ساخت گزارش...');
-
-    /* ───── ابعاد (2x برای کیفیت بالا) ───── */
-    const SCALE  = 2;
-    const W      = 794;                   /* عرض A4 در 96 DPI */
-    const MARGIN = 40;                    /* حاشیه */
-    const CW     = W - MARGIN * 2;       /* عرض محتوا */
-
-    /* ───── فاز ۱: اندازه‌گیری ارتفاع (off-screen) ───── */
-    const measureCanvas = document.createElement('canvas');
-    measureCanvas.width  = W * SCALE;
-    measureCanvas.height = 4000 * SCALE;  /* بزرگ موقت */
-    const mCtx = measureCanvas.getContext('2d');
-    mCtx.scale(SCALE, SCALE);
-
-    /* اندازه‌گیری واقعی ارتفاع */
-    const contentHeight = _drawReport(mCtx, result, W, MARGIN, CW, true);
-    const H = contentHeight + 20;  /* یه کم padding پایین */
-
-    /* ───── فاز ۲: رسم واقعی ───── */
-    const canvas  = document.createElement('canvas');
-    canvas.width  = W * SCALE;
-    canvas.height = H * SCALE;
-    const ctx     = canvas.getContext('2d');
-    ctx.scale(SCALE, SCALE);
-
-    _drawReport(ctx, result, W, MARGIN, CW, false);
-
-    /* ───── دانلود ───── */
     try {
-        const link       = document.createElement('a');
-        const fieldName  = MAJORS[currentField]?.name || 'taraz';
-        link.download    = `گزارش-تراز-${fieldName}-${Date.now()}.png`;
-        link.href        = canvas.toDataURL('image/png', 1.0);
+        /* ── تنظیمات اولیه ── */
+        const SCALE = 2;                   /* ضریب کیفیت (Retina) */
+        const W     = 794;                 /* عرض A4 در 96 DPI */
+        const M     = 32;                  /* حاشیه */
+        const CW    = W - M * 2;           /* عرض محتوا */
+
+        /* ── فاز ۱: اندازه‌گیری ارتفاع ── */
+        const measureCanvas    = document.createElement('canvas');
+        measureCanvas.width    = W * SCALE;
+        measureCanvas.height   = 5000 * SCALE;
+        const measureCtx       = measureCanvas.getContext('2d');
+        measureCtx.scale(SCALE, SCALE);
+
+        const totalHeight = _drawReport(measureCtx, result, W, M, CW, true);
+
+        /* ── فاز ۲: رندر نهایی ── */
+        const canvas    = document.createElement('canvas');
+        canvas.width    = W * SCALE;
+        canvas.height   = (totalHeight + 20) * SCALE;
+        const ctx       = canvas.getContext('2d');
+        ctx.scale(SCALE, SCALE);
+
+        _drawReport(ctx, result, W, M, CW, false);
+
+        /* ── دانلود PNG ── */
+        const link     = document.createElement('a');
+        const fieldName = currentField === 'TAJROBI' ? 'تجربی' : 'ریاضی';
+        link.download  = `گزارش-تراز-${fieldName}-${result.traz}.png`;
+        link.href      = canvas.toDataURL('image/png', 1.0);
         link.click();
-        showToast('✅ گزارش دانلود شد!');
+
+        showToast('✅ تصویر با موفقیت دانلود شد!', 'success');
     } catch (err) {
-        console.error('[ExportPNG]', err);
-        showToast('❌ خطا در ساخت تصویر!');
+        console.error('PNG export error:', err);
+        showToast('❌ خطا در ساخت تصویر', 'error');
     }
 }
 
-/**
- * 🎨 رسم کامل گزارش روی Canvas
- * @param {CanvasRenderingContext2D} ctx - کانتکست کانوس
- * @param {Object} result - نتیجه محاسبه
- * @param {number} W - عرض کل
- * @param {number} M - حاشیه
- * @param {number} CW - عرض محتوا
- * @param {boolean} measureOnly - فقط اندازه‌گیری (برای فاز ۱)
- * @returns {number} ارتفاع نهایی محتوا
- */
+
+/* ════════════════════════════════════════════════════════════════
+ *  🖌️ موتور رسم گزارش روی Canvas
+ *  ════════════════════════════════════════════════════════════════
+ *  این تابع کل گزارش رو مستقیماً روی Canvas 2D رسم میکنه.
+ *  اگه measureOnly = true باشه، فقط ارتفاع نهایی رو محاسبه
+ *  میکنه بدون رسم واقعی (برای فاز ۱).
+ *
+ *  ساختار رسم:
+ *    1. بک‌گراند گرادیان
+ *    2. هدر (عنوان + تاریخ + رشته)
+ *    3. کارت اصلی تراز (بزرگ)
+ *    4. 🆕 کارت‌های σ و φ (ردیف جدید)
+ *    5. جدول دروس
+ *    6. فاصله تا اهداف
+ *    7. هشدار دروس غیرفعال
+ *    8. فوتر
+ * ──────────────────────────────────────────────────────────────── */
 function _drawReport(ctx, result, W, M, CW, measureOnly) {
     const level = result.level;
     const now   = new Date().toLocaleDateString('fa-IR', {
@@ -1071,7 +1334,7 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
     }
 
     /** اندازه‌گیری عرض متن */
-    function measureText(text, font) {
+    function measureTextWidth(text, font) {
         ctx.save();
         ctx.font = font;
         const w = ctx.measureText(text).width;
@@ -1098,7 +1361,7 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
     y += 30;
 
     drawText(
-        `${result.majorEmoji} رشته: ${result.major}  |  📅 ${now}`,
+        `${result.majorEmoji} رشته: ${result.major}  |  📅 ${now}  |  مدل v${MODEL_CONFIG.version}`,
         W / 2, y, '500 12px Vazirmatn, sans-serif', '#888', 'center'
     );
     y += 20;
@@ -1134,14 +1397,106 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
     const badgeY = y + 105;
     drawBadge(`${level.emoji} ${level.name}`, W / 2 - 120, badgeY, 'rgba(67,233,123,0.15)', '#2D8F5E', 11);
     drawBadge(level.league, W / 2, badgeY, 'rgba(56,178,227,0.1)', '#2878A8', 11);
-    drawBadge(`📏 نمره وزن‌دار: ${result.weightedScore}`, W / 2 + 140, badgeY, 'rgba(176,130,255,0.1)', '#7B52CC', 11);
+    drawBadge(`📏 Sw: ${result.weightedScore}`, W / 2 + 140, badgeY, 'rgba(176,130,255,0.1)', '#7B52CC', 11);
 
     drawText(
-        `${result.activeSubjectCount} درس فعال از ${Object.keys(result.details).length}`,
+        `${result.activeSubjectCount} درس فعال از ${Object.keys(result.details).length} · مدل v${MODEL_CONFIG.version}`,
         W / 2, y + mainCardH - 16, '400 10px Vazirmatn, sans-serif', '#999', 'center'
     );
 
     y += mainCardH + 20;
+
+    /* ═══════════════════════════════════════════════
+     *  🆕 کارت‌های σ و φ — ردیف جدید v8.0
+     *
+     *  دو کارت کنار هم:
+     *    [  σ انحراف معیار  |  φ نسبت پوشش  ]
+     * ═══════════════════════════════════════════════ */
+    const statsCardH  = 80;
+    const statsCardW  = (CW - 12) / 2;   /* نصف عرض با ۱۲px فاصله */
+    const statsCardX1 = M;                /* کارت چپ (φ) */
+    const statsCardX2 = M + statsCardW + 12; /* کارت راست (σ) */
+
+    /* ── محاسبه رنگ و لیبل σ ── */
+    let sigmaColor, sigmaBgColor, sigmaLabel;
+    if (result.sigma <= 10) {
+        sigmaColor   = '#2D8F5E';
+        sigmaBgColor = 'rgba(67, 233, 123, 0.08)';
+        sigmaLabel   = '🎯 عالی — یکنواخت';
+    } else if (result.sigma <= 20) {
+        sigmaColor   = '#2878A8';
+        sigmaBgColor = 'rgba(56, 178, 227, 0.08)';
+        sigmaLabel   = '📊 خوب';
+    } else if (result.sigma <= 30) {
+        sigmaColor   = '#C07800';
+        sigmaBgColor = 'rgba(255, 183, 77, 0.08)';
+        sigmaLabel   = '⚠️ متوسط — نوسان زیاد';
+    } else {
+        sigmaColor   = '#CC3344';
+        sigmaBgColor = 'rgba(255, 107, 107, 0.08)';
+        sigmaLabel   = '🔴 ضعیف — ناهماهنگ';
+    }
+
+    /* ── محاسبه رنگ و لیبل φ ── */
+    let phiColor, phiBgColor, phiLabel;
+    const phiPercent = Math.round(result.phi * 100);
+    if (result.phi >= 0.9) {
+        phiColor   = '#2D8F5E';
+        phiBgColor = 'rgba(67, 233, 123, 0.08)';
+        phiLabel   = '✅ عالی — تقریباً کامل';
+    } else if (result.phi >= 0.7) {
+        phiColor   = '#2878A8';
+        phiBgColor = 'rgba(56, 178, 227, 0.08)';
+        phiLabel   = '📝 خوب';
+    } else if (result.phi >= 0.5) {
+        phiColor   = '#C07800';
+        phiBgColor = 'rgba(255, 183, 77, 0.08)';
+        phiLabel   = '⚠️ متوسط — نصفه کاره';
+    } else {
+        phiColor   = '#CC3344';
+        phiBgColor = 'rgba(255, 107, 107, 0.08)';
+        phiLabel   = '🔴 ناکافی';
+    }
+
+    /* ── رسم کارت σ (سمت راست — چون RTL هست) ── */
+    drawCard(statsCardX2, y, statsCardW, statsCardH, sigmaBgColor, `${sigmaColor}33`);
+
+    drawText(
+        '📐 انحراف معیار (σ)',
+        statsCardX2 + statsCardW / 2, y + 22,
+        'bold 11px Vazirmatn, sans-serif', '#555', 'center'
+    );
+    drawText(
+        String(result.sigma),
+        statsCardX2 + statsCardW / 2, y + 48,
+        'bold 22px Vazirmatn, sans-serif', sigmaColor, 'center'
+    );
+    drawText(
+        sigmaLabel,
+        statsCardX2 + statsCardW / 2, y + 68,
+        '400 9px Vazirmatn, sans-serif', sigmaColor, 'center'
+    );
+
+    /* ── رسم کارت φ (سمت چپ) ── */
+    drawCard(statsCardX1, y, statsCardW, statsCardH, phiBgColor, `${phiColor}33`);
+
+    drawText(
+        '📋 نسبت پوشش (φ)',
+        statsCardX1 + statsCardW / 2, y + 22,
+        'bold 11px Vazirmatn, sans-serif', '#555', 'center'
+    );
+    drawText(
+        `${phiPercent}٪`,
+        statsCardX1 + statsCardW / 2, y + 48,
+        'bold 22px Vazirmatn, sans-serif', phiColor, 'center'
+    );
+    drawText(
+        phiLabel,
+        statsCardX1 + statsCardW / 2, y + 68,
+        '400 9px Vazirmatn, sans-serif', phiColor, 'center'
+    );
+
+    y += statsCardH + 16;
 
     /* ═══════════════════════════════════════════════
      *  📋 جدول دروس
@@ -1208,7 +1563,7 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
         /* خط‌خوردگی برای درس غیرفعال */
         if (!measureOnly && isDisabled) {
             ctx.save();
-            const tw = measureText(subjectLabel, subFont);
+            const tw = measureTextWidth(subjectLabel, subFont);
             ctx.strokeStyle = '#FFB5C2';
             ctx.lineWidth   = 1.5;
             ctx.beginPath();
@@ -1225,14 +1580,15 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
 
     /* ═══════════════════════════════════════════════
      *  🎯 فاصله تا اهداف
+     *  (هم‌سان با targets در SECTION 11)
      * ═══════════════════════════════════════════════ */
     const targets = [
-        { name: "پزشکی آزاد / سایر",       traz: 5700 },
-        { name: "پزشکی اهواز / همدان",      traz: 6000 },
-        { name: "پزشکی کرمان / گیلان",      traz: 6200 },
-        { name: "پزشکی مشهد / تبریز",       traz: 6400 },
-        { name: "پزشکی شیراز / اصفهان",     traz: 6700 },
-        { name: "پزشکی تهران / بهشتی",      traz: 7000 },
+        { name: "L1 — پزشکی آزاد،پردیس،مازاد",                                    traz: 5700 },
+        { name: "L2 — پزشکی یاسوج،بوشهر،ایلام،ساری،یزد،ارومیه،کاشان،زنجان",       traz: 5900 },
+        { name: "L3 — پزشکی کرمان،گیلان،تبریز،اهواز،کرمانشاه،همدان،بابل",         traz: 6300 },
+        { name: "L4 — پزشکی شیراز،اصفهان،مشهد",                                    traz: 6700 },
+        { name: "L4+ — پزشکی قطعی شیراز،اصفهان،مشهد",                               traz: 7000 },
+        { name: "L5 — پزشکی تهران،بهشتی،ایران",                                    traz: 7200 },
     ];
 
     const targetCardH = 40 + targets.length * 32 + 10;
@@ -1293,6 +1649,25 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
     }
 
     /* ═══════════════════════════════════════════════
+     *  🆕 فرمول مدل v8.0 — نمایش فرمول با اعداد واقعی
+     * ═══════════════════════════════════════════════ */
+    const formulaCardH = 56;
+    drawCard(M, y, CW, formulaCardH, 'rgba(176, 130, 255, 0.05)', 'rgba(176, 130, 255, 0.15)');
+
+    drawText(
+        '🧮 فرمول محاسبه',
+        W / 2, y + 20,
+        'bold 11px Vazirmatn, sans-serif', '#7B52CC', 'center'
+    );
+    drawText(
+        result.formula + ' = ' + result.traz,
+        W / 2, y + 42,
+        '400 9px Vazirmatn, sans-serif', '#888', 'center'
+    );
+
+    y += formulaCardH + 14;
+
+    /* ═══════════════════════════════════════════════
      *  🔖 فوتر
      * ═══════════════════════════════════════════════ */
     /* خط جداکننده */
@@ -1317,6 +1692,7 @@ function _drawReport(ctx, result, W, M, CW, measureOnly) {
 
     return y;  /* ارتفاع نهایی */
 }
+
 
 
 /* ────────────────────────────────────────────────────────────────
